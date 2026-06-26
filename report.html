@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GreenSpace - Submit a Report</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <!-- Firebase JS Client compat SDKs via CDN -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <!-- Leaflet Map CSS/JS via CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+  <div class="public-container">
+    <!-- Header -->
+    <header class="public-header">
+      <img src="https://1bf580bb3eb00c4aca016f0ebaf1c320.cdn.bubble.io/cdn-cgi/image/w=256,h=256,f=auto,dpr=1,fit=contain/f1740544848178x886745907111146100/Park%20Patrol%20Logos%20-%2010.png" alt="GreenSpace Logo">
+      
+      <!-- Top header actions switch depending on page steps -->
+      <div id="header-action-container">
+        <button id="btn-login-redirect" class="btn btn-secondary">Log in</button>
+      </div>
+    </header>
+
+    <!-- STEP 1: CHOOSE LOCATION MODE -->
+    <section id="wizard-step-1" class="tab-content active">
+      <div class="wizard-card">
+        <h2 class="wizard-title">Submit a Report</h2>
+        
+        <div class="choices-layout">
+          <!-- Choice Left: GreenCode -->
+          <div class="choice-box">
+            <h3>I see a GreenCode.</h3>
+            <p>Awesome! This will make it even easier and faster to resolve the issue.</p>
+            
+            <form id="form-location-code" class="choice-box-input-wrapper">
+              <input type="text" id="input-loc-code" class="form-control" placeholder="Enter GreenCode here..." required>
+              <button type="submit" class="btn btn-secondary btn-icon-only">
+                <span class="material-symbols-rounded" style="font-size: 16px;">arrow_forward</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-icon-only" onclick="alert('Camera scanner not supported in headless browser environment.')" style="padding:8px;">
+                <span class="material-symbols-rounded" style="font-size: 16px;">photo_camera</span>
+              </button>
+            </form>
+          </div>
+
+          <div class="choice-box-or">or</div>
+
+          <!-- Choice Right: GPS Location -->
+          <div class="choice-box">
+            <h3>Use my current GPS Location</h3>
+            <p>We'll locate the issue using your device's built-in GPS coordinates.</p>
+            <div style="margin-top: auto; display:flex; flex-direction:column; gap:8px;">
+              <span id="gps-selection-status" style="font-size:0.85rem; font-weight:600; color:var(--color-text-secondary);">Coordinates: Not acquired</span>
+              <button type="button" id="btn-get-gps" class="btn btn-primary" style="width:100%;">
+                <span class="material-symbols-rounded" style="font-size: 16px;">my_location</span> Find My Location
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2: ADD DETAILS FORM -->
+    <section id="wizard-step-2" class="tab-content">
+      <div class="wizard-card">
+        <h2 class="wizard-title" style="margin-bottom: 8px;">Submit a Report</h2>
+        <h3 class="wizard-subtitle" style="text-align: left; font-size: 1.5rem; margin-bottom: 24px;">Add Details</h3>
+        
+        <form id="form-report-details">
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 20px;">
+            <div class="form-group" style="flex: 1; min-width: 260px; margin-bottom: 0;">
+              <label for="detail-issue-type">Type of Issue</label>
+              <select id="detail-issue-type" class="form-control"></select>
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 260px; margin-bottom: 0;">
+              <label>Location</label>
+              <div id="detail-location-text" style="padding: 12px; background: var(--bg-canvas); border: var(--border-default); border-radius: var(--radius-md); font-weight: 600; color: var(--color-text-secondary); font-size: 0.95rem;">
+                No location selected yet
+              </div>
+              <input type="hidden" id="detail-location" required>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 20px;">
+            <div class="form-group" style="flex: 1; min-width: 260px; margin-bottom: 0;">
+              <label>Image (optional)</label>
+              <div class="upload-card">
+                <span style="font-size: 0.9rem; font-weight: 600; color: var(--color-text-secondary);">
+                  Upload an image to help us find the issue.
+                </span>
+              </div>
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 260px; margin-bottom: 0;">
+              <label for="detail-notes">Details</label>
+              <textarea id="detail-notes" class="form-control" rows="5" placeholder="Add details here..."></textarea>
+            </div>
+          </div>
+
+          <!-- Dynamic Email Tracking (Desktop/Mobile Form Submission splits) -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-top: 32px;">
+            <div class="form-group" style="flex: 1; min-width: 280px; margin-bottom: 0;">
+              <label for="detail-email">Track issue resolution and get reward points (optional)</label>
+              <input type="email" id="detail-email" class="form-control" placeholder="name@example.com">
+            </div>
+            
+            <!-- Desktop Submit button -->
+            <button type="submit" id="btn-submit-desktop" class="btn btn-primary btn-submit" style="padding: 12px 24px;">
+              Submit
+              <span class="material-symbols-rounded" style="margin-left: 4px; font-size: 16px; vertical-align: middle;">send</span>
+            </button>
+            
+            <!-- Mobile Submit Button (will be managed via media displays if needed, but in DOM both exist) -->
+            <button type="submit" id="btn-submit-mobile" class="btn btn-primary btn-submit" style="display:none; padding: 12px 24px;">
+              Submit Mobile
+              <span class="material-symbols-rounded" style="margin-left: 4px; font-size: 16px; vertical-align: middle;">send</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- STEP 3: THANKS FOR YOUR REPORT -->
+    <section id="wizard-step-3" class="tab-content">
+      <div class="wizard-card">
+        <h2 class="wizard-title" style="margin-bottom: 16px;">Thanks for your report!</h2>
+        
+        <!-- Status Tracker widget -->
+        <div class="status-tracker-card">
+          <span class="status-tracker-label">Your Report's Status Tracker:</span>
+          <div class="status-tracker-badge">
+            <span class="material-symbols-rounded" style="color:var(--color-text-secondary); vertical-align:middle; margin-right:4px; font-size:20px;">play_circle</span>
+            Unstarted
+          </div>
+        </div>
+
+        <!-- Conditional operator greeting -->
+        <div id="operator-greeting-card" class="issue-card" style="display: none; background-color: rgb(247, 247, 247); padding: 24px; border: var(--border-default); border-radius: var(--radius-md); margin-top: 32px;">
+          <h4 id="greeting-username" style="font-size: 1.15rem; font-weight:700; margin-bottom:8px;">Hey Bryce!</h4>
+          <p style="color: var(--color-text-secondary); font-size:0.95rem; font-weight:600;">We see you're logged in already! Thanks for helping create cleaner, safer public spaces.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="public-footer">
+      <img src="https://1bf580bb3eb00c4aca016f0ebaf1c320.cdn.bubble.io/cdn-cgi/image/w=256,h=256,f=auto,dpr=1,fit=contain/f1740544848178x886745907111146100/Park%20Patrol%20Logos%20-%2010.png" alt="GreenSpace Slogan Logo">
+      <span>Together, we create cleaner, safer public spaces.</span>
+    </footer>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/report.js"></script>
+</body>
+</html>

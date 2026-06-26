@@ -1,0 +1,13 @@
+{
+  "name": "new-report-notifier",
+  "version": "1.0.0",
+  "description": "Send email/push alerts when new reports are submitted to Park Patrol",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@google-cloud/pubsub": "^4.8.0",
+    "express": "^4.21.0"
+  }
+}

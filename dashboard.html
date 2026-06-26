@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GreenSpace - Dashboard</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <!-- Firebase JS Client compat SDKs via CDN -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <!-- Leaflet CSS & JS for Interactive Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Chart.js for Dashboard Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- Mobile Toggle Header Bar -->
+  <div class="mobile-header-bar">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 1.2rem; font-weight: 800; color: var(--color-primary-contrast);">GreenSpace</span>
+    </div>
+    <button id="menu-toggle-btn" class="menu-toggle-btn">
+      <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
+  </div>
+
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside id="sidebar-drawer" class="sidebar">
+      <div class="logo-container">
+        <img class="logo-img" src="https://1bf580bb3eb00c4aca016f0ebaf1c320.cdn.bubble.io/cdn-cgi/image/w=256,h=256,f=auto,dpr=1,fit=contain/f1740544848178x886745907111146100/Park%20Patrol%20Logos%20-%2010.png" alt="GreenSpace Logo">
+      </div>
+
+      <!-- Park Selectors (Only shown if a park is selected) -->
+      <div id="sidebar-selectors" class="park-selector-group" style="display: none;">
+        <form id="park-select-form" class="select-wrapper">
+          <select id="park-dropdown" class="form-control" style="flex-grow: 1; height: 40px; font-weight: 600; padding: 8px 12px;"></select>
+          <button type="submit" class="btn btn-secondary btn-icon-only" style="height: 40px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </form>
+
+        <form id="park-search-form" class="select-wrapper">
+          <div class="search-input-wrapper">
+            <svg class="search-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="park-search" class="form-control" placeholder="All parks..." style="padding-left: 36px; height: 40px;">
+          </div>
+          <button type="submit" class="btn btn-secondary btn-icon-only" style="height: 40px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </form>
+      </div>
+
+      <!-- Sidebar Navigation (Only shown if a park is selected) -->
+      <nav id="sidebar-nav-links" class="sidebar-nav" style="display: none;">
+        <button id="nav-map" class="nav-item">
+          <span class="material-symbols-rounded nav-icon">map</span>
+          <span>Interactive Map</span>
+        </button>
+        <button id="nav-reports" class="nav-item active">
+          <span class="material-symbols-rounded nav-icon">description</span>
+          <span>Reports</span>
+        </button>
+        <button id="nav-analytics" class="nav-item">
+          <span class="material-symbols-rounded nav-icon">bar_chart</span>
+          <span>Analytics</span>
+        </button>
+        <button id="nav-marketplace" class="nav-item">
+          <span class="material-symbols-rounded nav-icon">storefront</span>
+          <span>Marketplace</span>
+        </button>
+      </nav>
+
+      <!-- Bottom Feedback Link -->
+      <a class="sidebar-feedback-link" href="https://docs.google.com/forms/d/e/1FAIpQLSdSmCBh1rsoHUtbTd0pL9efMPBj7fxP_YhYX_71BKIGJ55rcw/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
+        Give Feedback about GreenSpace →
+      </a>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+      <!-- Header -->
+      <header id="app-header-bar" class="app-header" style="display: none;">
+        <div class="header-park-info">
+          <h1 id="header-park-name" class="header-park-name">Demo Park</h1>
+          <span id="header-park-location" class="header-park-location">Williamsburg, VA 23185</span>
+        </div>
+
+        <div class="header-actions" style="margin-left: auto; display: flex; align-items: center;">
+          <!-- Impersonation Panel -->
+          <div id="impersonation-container" style="display: none; align-items: center; gap: 8px; background: rgba(0,0,0,0.05); padding: 4px 12px; border-radius: var(--radius-lg); border: var(--border-default); margin-right: 12px;">
+            <span class="material-symbols-rounded" style="color: #e65100; font-size: 18px; vertical-align: middle;">supervised_user_circle</span>
+            <span style="font-size: 0.8rem; font-weight: 700; color: #555;">View As Role:</span>
+            <select id="impersonate-role-select" class="form-control" style="height: 30px; font-size: 0.8rem; padding: 2px 8px; width: 145px; border-radius: 4px; border: 1px solid #ccc; background: white; color: black; font-weight: 600; cursor: pointer;">
+              <option value="admin">Admin</option>
+              <option value="manager">Park Manager</option>
+              <option value="staff">Staff Member</option>
+              <option value="public">Public Visitor</option>
+            </select>
+          </div>
+
+          <div class="account-dropdown-container" style="position: relative; display: inline-block;">
+            <button id="header-account-dropdown-btn" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px;">
+              <span id="header-user-avatar" style="width: 24px; height: 24px; border-radius: 50%; background-color: rgba(255,255,255,0.3); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;"></span>
+              <span id="header-user-name">User</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none" style="margin-left: 2px;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div id="account-dropdown-menu" class="account-dropdown-menu" style="display: none; position: absolute; right: 0; top: 110%; width: 220px; background-color: white; border: var(--border-default); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); z-index: 300; overflow: hidden; padding: 6px 0;">
+              <div style="padding: 10px 16px; border-bottom: 1px solid rgba(0,0,0,0.1); display: flex; flex-direction: column;">
+                <span id="dropdown-user-name" style="font-weight: 700; font-size: 0.95rem; color: black; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                <span id="dropdown-user-email" style="font-size: 0.8rem; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+              </div>
+              <button id="dropdown-btn-personal" class="dropdown-item" style="width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                Personal Details
+              </button>
+              <button id="dropdown-btn-admin" class="dropdown-item" style="width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><path d="M11 18H8a2 2 0 0 1-2-2V9"></path></svg>
+                Park Administration
+              </button>
+              <div style="border-top: 1px solid rgba(0,0,0,0.1); margin: 6px 0;"></div>
+              <button id="dropdown-btn-signout" class="dropdown-item" style="width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--color-status-new-text);">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content Area -->
+      <main class="content-area">
+        
+        <!-- INITIAL VIEW: SELECT A PARK (Shown only when no park is active) -->
+        <section id="view-select-park-center" class="tab-content active" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh;">
+          <h2 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 24px; text-align: center;">Select a Park</h2>
+          
+          <div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 16px;">
+            <form id="park-select-form-center" class="select-wrapper">
+              <select id="park-dropdown-center" class="form-control" style="flex-grow: 1; height: 48px; font-weight: 600; padding: 12px; border-radius:5px; background-color: rgb(185, 198, 188); color:black;"></select>
+              <button type="submit" class="btn btn-secondary btn-icon-only" style="height: 48px; width:48px; background-color: rgb(170, 182, 173);">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </button>
+            </form>
+
+            <form id="park-search-form-center" class="select-wrapper">
+              <div class="search-input-wrapper">
+                <input type="text" id="park-search-center" class="form-control" placeholder="All parks..." style="height: 48px; border-radius:5px; padding: 12px; background-color: rgb(185, 198, 188); color:black;">
+              </div>
+              <button type="submit" class="btn btn-secondary btn-icon-only" style="height: 48px; width:48px; background-color: rgb(170, 182, 173);">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- Tab 0: Interactive Map View -->
+        <section id="view-map" class="tab-content" style="display: none;">
+          <div class="section-header">
+            <h2 class="section-title">Interactive Map</h2>
+            <div class="map-controls-row" style="display: flex; align-items: center; width: 100%; gap: 16px;">
+              <span style="font-size: 0.85rem; font-weight:600; color: var(--color-text-secondary);">Layers:</span>
+              <label class="map-checkbox-label"><input type="checkbox" id="layer-reports" checked> Active Issues</label>
+              <label class="map-checkbox-label"><input type="checkbox" id="layer-greencodes" checked> GreenCodes</label>
+              <label class="map-checkbox-label"><input type="checkbox" id="layer-pois" checked> Points of Interest</label>
+              <label class="map-checkbox-label"><input type="checkbox" id="layer-trails" checked> Trails</label>
+              <button id="btn-edit-park-map" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem; border-radius: var(--radius-md); margin-left: auto; display: flex; align-items: center; gap: 4px;">
+                <span class="material-symbols-rounded" style="font-size: 16px;">edit_map</span>
+                <span>Edit Park Map</span>
+              </button>
+            </div>
+          </div>
+          <div id="map-container-box" style="position: relative;">
+            <div id="main-leaflet-map" style="height: 500px; width: 100%; border-radius: var(--radius-lg); border: var(--border-default); box-shadow: var(--shadow-sm); z-index: 10;"></div>
+          </div>
+          <div class="map-legend" style="margin-top: 16px; display: flex; gap: 16px; flex-wrap: wrap; background: white; padding: 12px; border-radius: var(--radius-md); border: var(--border-default); font-size: 0.85rem;">
+            <div><span class="legend-dot" style="background-color: #EF4444;"></span> Received / Assigned / Dispatched</div>
+            <div><span class="legend-dot" style="background-color: #F59E0B;"></span> Investigating / Resolving</div>
+            <div><span class="legend-dot" style="background-color: #10B981;"></span> Complete / Resolved</div>
+            <div><span class="legend-dot" style="background-color: #3B82F6;"></span> Points of Interest (POIs)</div>
+            <div><span class="legend-dot" style="background-color: #10B981; border-radius: 4px;"></span> GreenCodes (QR Locations)</div>
+          </div>
+        </section>
+
+        <!-- Tab 1: Reports View -->
+        <section id="view-reports" class="tab-content">
+          <div class="section-header">
+            <h2 class="section-title">Reports</h2>
+            <button id="open-report-modal-btn" class="btn btn-primary">
+              <span class="material-symbols-rounded" style="margin-right:6px; font-size:18px; vertical-align:middle;">add</span>
+              <span>New Report</span>
+            </button>
+          </div>
+
+          <div style="display: flex; gap: 24px; min-height: 65vh; align-items: stretch; margin-top: 16px;">
+            <!-- Left panel: Reports List -->
+            <div style="width: 320px; background: white; border: var(--border-default); border-radius: var(--radius-lg); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; box-shadow: var(--shadow-sm);">
+              <div style="padding: 12px 16px; border-bottom: 1px solid var(--neutral-gray-border); background: var(--bg-canvas); display: flex; gap: 8px;">
+                <select id="report-status-filter" class="form-control" style="height: 36px; padding: 4px 8px; font-size: 0.85rem;">
+                  <option value="all">All Statuses</option>
+                  <option value="Received">Received</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="Dispatched">Dispatched</option>
+                  <option value="Investigating">Investigating</option>
+                  <option value="Resolving">Resolving</option>
+                  <option value="Complete">Complete</option>
+                  <option value="On Hold">On Hold</option>
+                  <option value="Archived">Archived</option>
+                </select>
+              </div>
+              <div id="reports-list-container" style="flex-grow: 1; overflow-y: auto; padding: 12px 8px; display: flex; flex-direction: column; gap: 8px;">
+                <!-- Dynamic ticket items -->
+              </div>
+            </div>
+
+            <!-- Right panel: Selected Report Detail Editor -->
+            <div id="report-detail-panel" style="flex-grow: 1; background: white; border: var(--border-default); border-radius: var(--radius-lg); padding: 32px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+              <!-- Dynamic details/editor view -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 2: Analytics View -->
+        <section id="view-analytics" class="tab-content" style="display: none;">
+          <div class="section-header">
+            <h2 class="section-title">Analytics & Insights</h2>
+            <div class="date-filter-wrapper">
+              <label for="analytics-timeframe" style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); margin-right: 8px;">Timeframe:</label>
+              <select id="analytics-timeframe" class="form-control" style="width: 150px; height: 36px; padding: 4px 8px;">
+                <option value="all">All Time</option>
+                <option value="7">Last 7 Days</option>
+                <option value="30" selected>Last 30 Days</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="analytics-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div class="stat-card" style="background: white; padding: 20px; border-radius: var(--radius-lg); border: var(--border-default); display: flex; align-items: center; gap: 16px;">
+              <span class="material-symbols-rounded" style="font-size: 32px; color: var(--status-alert); background: rgba(250, 181, 21, 0.1); padding: 10px; border-radius: var(--radius-md);">warning</span>
+              <div>
+                <h4 id="stat-total-issues" style="font-size: 1.8rem; font-weight: 800; color: black; line-height: 1.1;">0</h4>
+                <p style="font-size: 0.8rem; color: var(--color-text-secondary); font-weight:600; text-transform: uppercase; margin-top: 4px;">Total Reports</p>
+              </div>
+            </div>
+            <div class="stat-card" style="background: white; padding: 20px; border-radius: var(--radius-lg); border: var(--border-default); display: flex; align-items: center; gap: 16px;">
+              <span class="material-symbols-rounded" style="font-size: 32px; color: var(--status-destructive); background: rgba(255, 0, 0, 0.1); padding: 10px; border-radius: var(--radius-md);">hourglass_empty</span>
+              <div>
+                <h4 id="stat-open-issues" style="font-size: 1.8rem; font-weight: 800; color: black; line-height: 1.1;">0</h4>
+                <p style="font-size: 0.8rem; color: var(--color-text-secondary); font-weight:600; text-transform: uppercase; margin-top: 4px;">Open / Active</p>
+              </div>
+            </div>
+            <div class="stat-card" style="background: white; padding: 20px; border-radius: var(--radius-lg); border: var(--border-default); display: flex; align-items: center; gap: 16px;">
+              <span class="material-symbols-rounded" style="font-size: 32px; color: var(--status-success); background: rgba(23, 219, 78, 0.1); padding: 10px; border-radius: var(--radius-md);">check_circle</span>
+              <div>
+                <h4 id="stat-resolved-issues" style="font-size: 1.8rem; font-weight: 800; color: black; line-height: 1.1;">0</h4>
+                <p style="font-size: 0.8rem; color: var(--color-text-secondary); font-weight:600; text-transform: uppercase; margin-top: 4px;">Resolved</p>
+              </div>
+            </div>
+            <div class="stat-card" style="background: white; padding: 20px; border-radius: var(--radius-lg); border: var(--border-default); display: flex; align-items: center; gap: 16px;">
+              <span class="material-symbols-rounded" style="font-size: 32px; color: #4285F4; background: rgba(66, 133, 244, 0.1); padding: 10px; border-radius: var(--radius-md);">schedule</span>
+              <div>
+                <h4 id="stat-resolution-time" style="font-size: 1.8rem; font-weight: 800; color: black; line-height: 1.1;">-</h4>
+                <p style="font-size: 0.8rem; color: var(--color-text-secondary); font-weight:600; text-transform: uppercase; margin-top: 4px;">Avg Resolution</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="analytics-charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 24px;">
+            <div class="chart-card" style="background: white; padding: 20px; border-radius: var(--radius-lg); border: var(--border-default);">
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: black; margin-bottom: 16px;">Reports by Category</h3>
+              <div style="height: 260px; position: relative;">
+                <canvas id="categoryChart"></canvas>
+              </div>
+            </div>
+            <div class="chart-card" style="background: white; padding: 20px; border-radius: var(--radius-lg); border: var(--border-default);">
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: black; margin-bottom: 16px;">Daily Report Volume</h3>
+              <div style="height: 260px; position: relative;">
+                <canvas id="dailyVolumeChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Predictive Insights Card -->
+          <div class="predictive-insights-card" style="background: white; padding: 20px; border-radius: var(--radius-lg); border: var(--border-default);">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+              <span class="material-symbols-rounded" style="color: var(--status-alert);">psychology</span>
+              <h3 style="font-size: 1.1rem; font-weight: 700; color: black; margin: 0;">Predictive Maintenance Insights</h3>
+            </div>
+            <div id="predictive-insights-content">
+              <p style="font-size: 0.9rem; color: var(--color-text-secondary);">Loading predictive analysis based on report history...</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 3: Marketplace View -->
+        <section id="view-marketplace" class="tab-content" style="display: none;">
+          <div class="section-header" style="margin-bottom: 20px;">
+            <h2 class="section-title">Marketplace</h2>
+            <div id="status-dot-container" style="display:flex; align-items:center; gap:8px;">
+              <div id="status-dot" class="status-dot active"></div>
+              <span id="marketplace-status-text" style="font-weight:600; font-size:0.9rem; color:var(--color-text-secondary);">Marketplace is active</span>
+            </div>
+          </div>
+
+          <div class="marketplace-alert-banner" style="background: white; border: var(--border-default); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow-sm);">
+            <h3 id="marketplace-points-text" style="font-size:1.15rem; font-weight:700; color:black; margin:0;">You have X unredeemed points.</h3>
+          </div>
+
+          <div id="marketplace-wrapper" style="display: flex; gap: 24px; min-height: 65vh; align-items: stretch;">
+            <!-- Left panel: Sub-tabs -->
+            <div style="width: 220px; background: white; border: var(--border-default); border-radius: var(--radius-lg); padding: 16px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; box-shadow: var(--shadow-sm);">
+              <button id="btn-sub-fulfill" class="settings-nav-item active">
+                <span class="material-symbols-rounded">receipt_long</span>
+                <span>Fulfill Orders</span>
+              </button>
+              <button id="btn-sub-items" class="settings-nav-item">
+                <span class="material-symbols-rounded">featured_seasonal_and_gifts</span>
+                <span>Manage Items</span>
+              </button>
+              <button id="btn-sub-settings" class="settings-nav-item">
+                <span class="material-symbols-rounded">settings</span>
+                <span>Settings</span>
+              </button>
+            </div>
+
+            <!-- Center panel: List selector -->
+            <div id="marketplace-list-column" style="width: 280px; background: white; border: var(--border-default); border-radius: var(--radius-lg); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; box-shadow: var(--shadow-sm);">
+              <div class="settings-list-header" style="padding: 16px; border-bottom: 1px solid var(--neutral-gray-border); background: var(--bg-canvas); display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="marketplace-list-title" style="font-size: 1rem; font-weight: 700; color: black; margin: 0;">Orders</h3>
+                <button id="btn-new-reward-item" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.8rem; border-radius: var(--radius-md); display:none;">
+                  <span class="material-symbols-rounded" style="font-size:14px;">add</span> Add
+                </button>
+              </div>
+              <div id="marketplace-list-container" class="settings-list-items" style="padding: 12px 8px;">
+                <!-- List of orders or rewards -->
+              </div>
+            </div>
+
+            <!-- Right panel: Detail Editor / Action Area -->
+            <div id="marketplace-detail-panel" style="flex-grow: 1; background: white; border: var(--border-default); border-radius: var(--radius-lg); padding: 32px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column;">
+              <!-- Dynamic content based on selected item/order -->
+            </div>
+          </div>
+
+          <div id="marketplace-empty-fallback" class="empty-message" style="display: none; background:white; border:var(--border-default); border-radius:var(--radius-lg); padding:40px; text-align:center;">
+            Marketplace features are disabled for this park. You can enable them under Settings.
+            <div style="margin-top: 16px;">
+              <button id="btn-enable-marketplace" class="btn btn-primary">Enable Marketplace</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Popup Personal Details Settings -->
+  <div id="personal-details-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px; width: 90%;">
+      <button class="modal-close" id="close-personal-details-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      
+      <h3 style="font-size: 2rem; font-weight: 800; margin-bottom: 24px;">Personal Details</h3>
+      
+      <form id="profile-form">
+        <div class="form-group">
+          <label for="profile-name">Full Name</label>
+          <input type="text" id="profile-name" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="profile-email" class="form-control" disabled>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top: 8px; width: 100%;">
+          Save Edits
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Popup Park Administration Settings -->
+  <div id="park-admin-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px; width: 90%;">
+      <button class="modal-close" id="close-park-admin-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      
+      <h3 style="font-size: 2rem; font-weight: 800; margin-bottom: 24px;">Park Administration</h3>
+      
+      <h4 style="margin-bottom: 8px; font-weight:700; font-size:1.1rem; color: black;">Active Park Groups</h4>
+      <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 16px; font-weight:500;">
+        Manage the park groups you own or have administration privileges for.
+      </p>
+      
+      <div id="park-groups-list" style="display:flex; flex-direction:column; gap:12px;">
+        <!-- Dynamically populated park groups -->
+      </div>
+
+      <div style="margin-top: 24px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 20px;">
+        <h5 style="font-weight: 700; margin-bottom: 12px; color: black;">Create Park Group (Testing Tool)</h5>
+        <form id="create-park-group-form" style="display: flex; gap: 12px; align-items: flex-end;">
+          <div class="form-group" style="flex-grow: 1; margin-bottom: 0;">
+            <label for="new-park-group-name" style="font-size: 0.8rem; color: var(--color-text-secondary);">Park Group Name</label>
+            <input type="text" id="new-park-group-name" class="form-control" placeholder="e.g. East Coast Parks" required style="height: 40px;">
+          </div>
+          <button type="submit" class="btn btn-primary" style="height: 40px; display: inline-flex; align-items: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Create
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup Park Group Edit / Management -->
+  <div id="park-group-modal" class="modal-overlay" style="z-index:205;">
+    <div class="modal-content" style="max-width: 900px; width: 95%;">
+      <button class="modal-close" id="close-park-group-modal-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+
+      <form id="park-group-name-form" style="display:flex; align-items:flex-end; gap:12px; margin-bottom:20px; border-bottom:1px solid rgba(0,0,0,0.1); padding-bottom:16px;">
+        <div class="form-group" style="flex-grow:1; margin-bottom:0;">
+          <label style="font-size:0.85rem; color:var(--color-text-secondary);">Park Group Name</label>
+          <input type="text" id="park-group-name-input" class="form-control" style="height:40px;" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="height:40px; display:inline-flex; align-items:center; gap:6px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          Save
+        </button>
+      </form>
+
+      <!-- Sub-tabs within Park Group -->
+      <div class="modal-tabs" style="margin-bottom: 20px;">
+        <button id="pg-tab-parks-btn" class="btn modal-tab-btn active">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" style="margin-right:4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+          Parks
+        </button>
+        <button id="pg-tab-staff-btn" class="btn modal-tab-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" style="margin-right:4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          Staff
+        </button>
+        <button id="pg-tab-categories-btn" class="btn modal-tab-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" style="margin-right:4px;"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          Issue Categories
+        </button>
+        <button id="pg-tab-market-btn" class="btn modal-tab-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" style="margin-right:4px;"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+          Marketplace
+        </button>
+        <button id="pg-tab-sub-btn" class="btn modal-tab-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" style="margin-right:4px;"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+          Subscription and Usage
+        </button>
+      </div>
+
+      <!-- Sub-view content: Parks -->
+      <div id="pg-sub-parks" class="modal-tab-content active" style="background-color: white; border:1px solid rgba(0,0,0,0.1); padding:16px; border-radius:5px;">
+        <div id="pg-parks-list" style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+          <!-- Dynamically populated parks belonging to group -->
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(0,0,0,0.1); padding-top:16px;">
+          <span id="pg-parks-active-count" style="font-size:0.85rem; font-weight:700; color:var(--color-text-secondary);">3 parks active of 4 available parks.</span>
+          <button id="btn-add-new-park-pg" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            Add New Park
+          </button>
+        </div>
+      </div>
+
+      <!-- Sub-view content: Staff -->
+      <div id="pg-sub-staff" class="modal-tab-content" style="background-color: white; border:1px solid rgba(0,0,0,0.1); padding:16px; border-radius:5px;">
+        <div id="pg-staff-list" style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+          <!-- Dynamically populated staff belonging to group -->
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(0,0,0,0.1); padding-top:16px;">
+          <span id="pg-staff-active-count" style="font-size:0.85rem; font-weight:700; color:var(--color-text-secondary);">3 users active of 3 available users.</span>
+          <button id="btn-purchase-user-slot" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+            Purchase User Slot
+          </button>
+        </div>
+      </div>
+
+      <!-- Sub-view content: Issue Categories -->
+      <div id="pg-sub-categories" class="modal-tab-content" style="background-color: white; border:1px solid rgba(0,0,0,0.1); padding:16px; border-radius:5px;">
+        <div id="categories-list-container" style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px; max-height:300px; overflow-y:auto;">
+          <!-- Dynamically populated categories with input, Save, and Remove buttons -->
+        </div>
+        
+        <form id="new-category-form" style="display:flex; gap:8px; margin-top:20px; border-top:1px solid rgba(0,0,0,0.1); padding-top:16px;">
+          <input type="text" id="new-category-name" class="form-control" placeholder="New Issue Category..." required style="height:38px;">
+          <button type="submit" class="btn btn-primary" style="height:38px; display:inline-flex; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            New Category
+          </button>
+        </form>
+      </div>
+
+      <!-- Sub-view content: Marketplace -->
+      <div id="pg-sub-market" class="modal-tab-content" style="background-color: white; border:1px solid rgba(0,0,0,0.1); padding:24px; border-radius:5px;">
+        <h2 style="font-size:2rem; font-weight:800; margin-bottom:20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          Marketplace
+          <span style="font-size:0.85rem; font-weight:600; background:#d4e0d7; color:black; padding:6px 12px; border-radius:20px; display:inline-flex; align-items:center; gap:6px;">
+            <span class="status-dot active" style="margin-bottom:0; width:10px; height:10px;"></span>
+            Marketplace is currently active for Demo Parks & Rec.
+          </span>
+        </h2>
+        
+        <div style="background:#f1f1f1; padding:12px 16px; font-weight:700; font-size:0.95rem; border-radius:5px; margin-bottom:24px; display:inline-block; border:1px solid rgba(0,0,0,0.1);">
+          Demo Parks & Rec has awarded 15 unredeemed points.
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(0,0,0,0.1); padding-top:20px;">
+          <h4 style="font-weight:700; font-size:1.1rem; margin-bottom:0;">Manage Items</h4>
+          <button id="btn-new-item-pg" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            New Item
+          </button>
+        </div>
+      </div>
+
+      <!-- Sub-view content: Subscription Placeholder -->
+      <div id="pg-sub-subscription" class="modal-tab-content" style="background-color: white; border:1px solid rgba(0,0,0,0.1); padding:24px; border-radius:5px; text-align:center;">
+        <p style="font-weight:600; color:var(--color-text-secondary);">Subscription Plan: GreenSpace Premium Group Plan<br>Billing cycle active.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup Staff Permissions -->
+  <div id="staff-permissions-modal" class="modal-overlay" style="z-index:210;">
+    <div class="modal-content" style="max-width: 700px; width: 90%;">
+      <button class="modal-close" id="close-staff-permissions-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      
+      <h3 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 20px; display:flex; align-items:center; gap:8px;">
+        <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        <span id="permissions-staff-name">John Smith</span>
+      </h3>
+
+      <div style="background-color: white; border:1px solid rgba(0,0,0,0.1); padding:16px; border-radius:5px;">
+        <h4 style="font-size:0.95rem; font-weight:700; color:var(--color-text-secondary); margin-bottom:16px;">Permissions by Park</h4>
+        <div id="permissions-parks-list" style="display:flex; flex-direction:column; gap:12px;">
+          <!-- Dynamically populated permissions by park -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup New Issue / Report -->
+  <div id="new-report-modal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="modal-close" id="close-report-modal-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 24px;">New Issue</h3>
+      
+      <form id="new-report-form">
+        <div class="form-group">
+          <label for="report-type">Type of Issue</label>
+          <select id="report-type" class="form-control">
+            <option value="Full Trash Can">Full Trash Can</option>
+            <option value="Hazard">Hazard</option>
+            <option value="Empty Dog Bag Dispenser">Empty Dog Bag Dispenser</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-muted); display:block; margin-bottom: 8px;">Select Location (Required)</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom: 12px;">
+            <button type="button" id="btn-select-location-map" class="btn btn-secondary" style="height:42px; border-radius: var(--radius-md); font-size:0.85rem; font-weight:700;">
+              <span class="material-symbols-rounded">map</span> Select on Map
+            </button>
+            <button type="button" id="btn-choose-greencode" class="btn btn-secondary" style="height:42px; border-radius: var(--radius-md); font-size:0.85rem; font-weight:700;">
+              <span class="material-symbols-rounded">qr_code_2</span> Choose GreenCode
+            </button>
+          </div>
+          <input type="hidden" id="report-lat" required>
+          <input type="hidden" id="report-lng" required>
+          <div id="selected-location-preview-text" style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); background: var(--bg-canvas); padding: 10px 14px; border-radius: var(--radius-md); border: var(--border-default); text-align: center;">
+            No location selected yet
+          </div>
+          <input type="hidden" id="report-location" required>
+        </div>
+
+        <div class="form-group">
+          <label>Image (optional)</label>
+          <div style="border: 2px dashed rgba(82, 102, 85, 0.3); border-radius: var(--radius-sm); padding: 24px; text-align: center; cursor: pointer;">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-text-secondary); margin-bottom: 8px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <p style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary);">
+              Upload an image to help us find the issue.
+            </p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="report-details">Details</label>
+          <textarea id="report-details" class="form-control" rows="3" placeholder="Provide any additional notes or instructions..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">
+          Submit
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Staff Map Picker Popup Modal -->
+  <div id="staff-map-picker-modal" class="modal-overlay" style="z-index: 210;">
+    <div class="modal-content" style="max-width: 700px; width: 95%; display: flex; flex-direction: column; height: 500px;">
+      <button class="modal-close" id="close-staff-map-picker-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 6px;">Select Location on Map</h3>
+      <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;">Click inside the map to set the exact coordinates of the issue.</p>
+      
+      <div id="staff-picker-map-container" style="flex-grow: 1; border: var(--border-default); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 16px;"></div>
+      
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span id="staff-picker-coordinates-text" style="font-size:0.85rem; font-weight:600; color:var(--color-text-secondary);">No coordinates pinned</span>
+        <button id="btn-confirm-staff-coords" class="btn btn-primary" disabled>Confirm Location</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GreenCodes Search Overlay Modal -->
+  <div id="greencodes-search-modal" class="modal-overlay" style="z-index: 210;">
+    <div class="modal-content" style="max-width: 650px; width: 95%; display: flex; flex-direction: column; height: 480px;">
+      <button class="modal-close" id="close-greencodes-search-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px;">Choose a GreenCode</h3>
+      
+      <div class="search-input-wrapper" style="position: relative; margin-bottom: 12px;">
+        <span class="material-symbols-rounded" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--color-text-muted);">search</span>
+        <input type="text" id="greencodes-search-input" class="form-control" placeholder="Search GreenCodes..." style="padding-left: 36px; height: 38px; font-size: 0.85rem;">
+      </div>
+      
+      <div style="display: flex; gap: 16px; flex-grow: 1; overflow: hidden; min-height: 250px;">
+        <!-- Left list of items -->
+        <div id="greencodes-search-list" style="width: 250px; overflow-y: auto; border: var(--border-default); border-radius: var(--radius-md); padding: 8px; display: flex; flex-direction: column; gap: 4px; background: white;">
+          <!-- Dynamically populated items -->
+        </div>
+        <!-- Right preview map -->
+        <div style="flex-grow: 1; border: var(--border-default); border-radius: var(--radius-md); overflow: hidden; display: flex; flex-direction: column; background: var(--bg-canvas);">
+          <div id="greencodes-preview-map" style="flex-grow: 1; height: 100%;"></div>
+          <div id="greencodes-preview-details" style="padding: 10px; font-size: 0.8rem; background: white; border-top: var(--border-default); text-align: center; font-weight: 600; color: var(--color-text-primary);">
+            Select a GreenCode to preview its location
+          </div>
+        </div>
+      </div>
+      
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:12px;">
+        <button id="btn-confirm-greencode-choice" class="btn btn-primary" disabled>Select GreenCode</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup Full Issue Details -->
+  <div id="issue-details-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px; width: 90%;">
+      <button class="modal-close" id="close-issue-details-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px; border-bottom:1px solid rgba(0,0,0,0.1); padding-bottom:12px;">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+        <h3 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 0;">Issue Details</h3>
+      </div>
+
+      <form id="issue-details-form">
+        <input type="hidden" id="details-issue-id">
+        
+        <div style="display:flex; gap:16px; margin-bottom:16px;">
+          <div class="form-group" style="flex:1; margin-bottom:0;">
+            <label>Type of Issue</label>
+            <select id="details-issue-type" class="form-control">
+              <!-- Dynamically populated categories -->
+            </select>
+          </div>
+          <div class="form-group" style="flex:1.5; margin-bottom:0;">
+            <label>Location</label>
+            <input type="text" id="details-issue-location" class="form-control">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Comments & Notes</label>
+          <textarea id="details-issue-comments" class="form-control" rows="4"></textarea>
+          <p style="font-size:0.75rem; color:var(--color-text-muted); font-weight:500; margin-top:6px;">
+            Sorry, you cannot make changes to uploaded images or who submitted the issue after it has been created.
+          </p>
+        </div>
+
+        <h4 style="margin: 24px 0 12px; font-weight:700; font-size:1.1rem; border-top:1px solid rgba(0,0,0,0.1); padding-top:16px; display:flex; align-items:center; gap:6px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Issue Assignment
+        </h4>
+
+        <div style="display:flex; gap:12px; margin-bottom:24px;">
+          <div class="form-group" style="flex:2; margin-bottom:0;">
+            <label style="font-size:0.8rem;">Assignment</label>
+            <select id="details-issue-assignee" class="form-control">
+              <!-- Staff list options -->
+            </select>
+          </div>
+          <div class="form-group" style="flex:1.5; margin-bottom:0;">
+            <label style="font-size:0.8rem;">Priority</label>
+            <select id="details-issue-priority" class="form-control">
+              <option value="">Choose a priority level...</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1.5; margin-bottom:0;">
+            <label style="font-size:0.8rem;">Status</label>
+            <select id="details-issue-status" class="form-control">
+              <option value="new">Unstarted</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Completed</option>
+            </select>
+          </div>
+        </div>
+
+        <h4 style="margin: 24px 0 12px; font-weight:700; font-size:1.1rem; border-top:1px solid rgba(0,0,0,0.1); padding-top:16px; display:flex; align-items:center; gap:6px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          Manager Tools
+        </h4>
+
+        <div class="form-group" style="margin-bottom:24px;">
+          <label style="font-size:0.8rem;">Transfer to Different Park</label>
+          <select id="details-issue-transfer-park" class="form-control">
+            <!-- Parks list options -->
+          </select>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(0,0,0,0.1); padding-top:20px;">
+          <button type="button" id="details-issue-invalidate-delete-btn" class="btn btn-danger" style="display:inline-flex; align-items:center; gap:6px; padding:10px 16px; background-color:#800000; color:white;">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+            Invalidate Points & Delete
+          </button>
+          <button type="submit" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px; padding:10px 20px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Save Edits
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Popup Quick Edit -->
+  <div id="quickedit-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 550px; width: 90%;">
+      <button class="modal-close" id="close-quickedit-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid rgba(0,0,0,0.1); padding-bottom:12px; padding-right:24px;">
+        <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0; display:flex; align-items:center; gap:6px;">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.5" fill="none"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          Quick Edit
+        </h3>
+        <button type="button" id="quickedit-invalidate-delete-btn" class="btn btn-danger" style="display:inline-flex; align-items:center; gap:6px; padding:6px 12px; font-size:0.8rem; background-color:#800000; color:white;">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+          Invalidate Points & Delete
+        </button>
+      </div>
+
+      <form id="quickedit-form">
+        <input type="hidden" id="quickedit-id">
+        
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
+          <span style="font-weight:700; font-size:0.85rem; color:var(--color-text-secondary); width:80px;">Status</span>
+          <button type="button" id="quickedit-next-status-btn" class="btn btn-secondary" style="height:36px; padding:6px 12px; font-size:0.85rem; display:inline-flex; align-items:center; gap:4px; font-weight:700;">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            Next Status
+          </button>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+            <span id="quickedit-status-display" style="font-weight:700; font-size:0.9rem;">Unstarted</span>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
+          <label style="font-weight:700; font-size:0.85rem; color:var(--color-text-secondary); width:80px; margin-bottom:0;">Assignment</label>
+          <div style="display:flex; flex-grow:1; gap:6px;">
+            <select id="quickedit-assignee" class="form-control" style="height:38px;">
+              <!-- Staff list options -->
+            </select>
+            <button type="submit" class="btn btn-secondary btn-icon-only" style="height:38px; width:38px;">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
+          <label style="font-weight:700; font-size:0.85rem; color:var(--color-text-secondary); width:80px; margin-bottom:0;">Priority</label>
+          <div style="display:flex; flex-grow:1; gap:6px;">
+            <select id="quickedit-priority" class="form-control" style="height:38px;">
+              <option value="">Choose a priority level...</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+            <button type="submit" class="btn btn-secondary btn-icon-only" style="height:38px; width:38px;">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirmation Dialog (#popup-delete-confirm) -->
+  <div id="delete-confirm-modal" class="modal-overlay" style="z-index: 210;">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <h3 style="font-size: 1.25rem; font-weight: 800; color:var(--color-status-new-text); margin-bottom:16px;">Are you sure?</h3>
+      <p style="margin-bottom:24px;">This action cannot be undone. Clicking confirm will permanently delete this item.</p>
+      <div style="display:flex; justify-content:center; gap:12px;">
+        <button id="delete-confirm-cancel-btn" class="btn btn-secondary">Cancel</button>
+        <button id="delete-confirm-ok-btn" class="btn btn-danger">Confirm & Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup New Reward Item (#popup-new-reward-item) -->
+  <div id="reward-item-modal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="modal-close" id="close-reward-modal-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 24px;">New Reward Item</h3>
+      <form id="reward-item-form">
+        <div class="form-group">
+          <label for="reward-name">Item Name</label>
+          <input type="text" id="reward-name" class="form-control" placeholder="e.g. GreenSpace Cap" required>
+        </div>
+        <div class="form-group">
+          <label for="reward-cost">Cost (Points)</label>
+          <input type="number" id="reward-cost" class="form-control" placeholder="e.g. 10" min="1" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding:12px;">Save Reward</button>
+      </form>
+    </div>
+  </div>
+  <!-- Popup Add New Park (#popup-add-park) -->
+  <div id="add-park-modal" class="modal-overlay" style="z-index:215;">
+    <div class="modal-content">
+      <button class="modal-close" id="close-add-park-modal-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 24px;">Add New Park</h3>
+      <form id="add-park-form">
+        <div class="form-group">
+          <label for="add-park-name">Park Name</label>
+          <input type="text" id="add-park-name" class="form-control" placeholder="e.g. Sunset Park" required>
+        </div>
+        <div class="form-group">
+          <label for="add-park-city">City</label>
+          <input type="text" id="add-park-city" class="form-control" placeholder="e.g. Williamsburg" required>
+        </div>
+        <div style="display:flex; gap:12px;">
+          <div class="form-group" style="flex: 1;">
+            <label for="add-park-state">State</label>
+            <input type="text" id="add-park-state" class="form-control" placeholder="e.g. VA" maxlength="2" required>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label for="add-park-zip">Zip Code</label>
+            <input type="number" id="add-park-zip" class="form-control" placeholder="e.g. 23185" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding:12px; margin-top: 12px;">Create Park</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Full-Screen Map Editor -->
+  <div id="fullscreen-map-editor" class="fullscreen-editor-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #fff; z-index: 9999; flex-direction: column; font-family: var(--font-sans);">
+    <!-- Editor Header -->
+    <header style="display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #1a1a1a; color: #fff; border-bottom: 1px solid #333; z-index: 10002;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span class="material-symbols-rounded" style="color: #4caf50; font-size: 28px;">edit_map</span>
+        <div>
+          <h2 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: #fff;">GreenSpace Map Editor</h2>
+          <p id="editor-subtitle" style="margin: 0; font-size: 0.8rem; color: #aaa;">Editing Park Bounds & Elements</p>
+        </div>
+      </div>
+      <!-- Banners for status -->
+      <div id="editor-status-banner" style="display: none; padding: 6px 16px; border-radius: 4px; font-size: 0.85rem; font-weight: 600;"></div>
+      <div style="display: flex; gap: 12px;">
+        <button id="editor-save-exit" class="btn btn-primary" style="background: #2e7d32; border: none; padding: 8px 16px; font-weight: 600;">Save & Exit</button>
+        <button id="editor-close-btn" class="btn btn-secondary" style="border: 1px solid #555; color: #fff; padding: 8px 16px; background: transparent;">Cancel</button>
+      </div>
+    </header>
+    
+    <!-- Editor Body -->
+    <div style="display: flex; flex: 1; position: relative; overflow: hidden; height: calc(100vh - 65px);">
+      <!-- Sidebar Tools Panel -->
+      <aside style="width: 320px; background: #fafafa; border-right: 1px solid #e0e0e0; display: flex; flex-direction: column; z-index: 10001; box-shadow: 2px 0 5px rgba(0,0,0,0.05);">
+        <!-- Active Park Info -->
+        <div style="padding: 16px; border-bottom: 1px solid #e0e0e0; background: #fff;">
+          <h3 id="editor-park-name" style="margin: 0 0 4px 0; font-size: 1rem; font-weight: 700; color: #333;">Park Name</h3>
+          <span id="editor-park-group" style="font-size: 0.8rem; color: #666; font-weight: 500;">Park Group</span>
+        </div>
+        
+        <!-- Toolbox Section -->
+        <div style="padding: 16px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
+          <!-- Geofence Approvals / Status Box (for managers and admins) -->
+          <div id="editor-approval-panel" style="background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; display: none;">
+            <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; font-weight: 700; color: #333;">Approval Workflow</h4>
+            <div id="approval-status-desc" style="font-size: 0.8rem; color: #666; margin-bottom: 12px;"></div>
+            <div id="approval-actions" style="display: flex; gap: 8px; flex-direction: column;">
+              <button id="btn-approve-park" class="btn btn-primary" style="font-size: 0.8rem; padding: 8px; display: none;">Approve Park</button>
+              <button id="btn-approve-geofence" class="btn btn-primary" style="font-size: 0.8rem; padding: 8px; display: none; background: #2e7d32; border: none;">Approve Geofence</button>
+              <button id="btn-reject-geofence" class="btn btn-danger" style="font-size: 0.8rem; padding: 8px; display: none;">Reject Geofence</button>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #777; font-weight: 700;">1. Boundary Management</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button id="fs-editor-draw-geofence" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; padding: 10px 14px; background: white;">
+                <span class="material-symbols-rounded">polyline</span>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.85rem; color: #333;">Draw Geofence Boundary</div>
+                  <div style="font-size: 0.75rem; color: #666;">Define custom park limits</div>
+                </div>
+              </button>
+              <button id="fs-editor-clear-geofence" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; padding: 10px 14px; color: var(--status-destructive); border-color: rgba(234, 67, 53, 0.2); background: white;">
+                <span class="material-symbols-rounded">delete</span>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.85rem; color: var(--status-destructive);">Reset Boundary</div>
+                  <div style="font-size: 0.75rem; color: #ea4335;">Clear geofence outline</div>
+                </div>
+              </button>
+            </div>
+          </div>
+          
+          <div>
+            <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #777; font-weight: 700;">2. Map Objects</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button id="fs-editor-add-poi" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; padding: 10px 14px; background: white;">
+                <span class="material-symbols-rounded">pin_drop</span>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.85rem; color: #333;">Point of Interest (POI)</div>
+                  <div style="font-size: 0.75rem; color: #666;">Add facilities, scenic spots</div>
+                </div>
+              </button>
+              <button id="fs-editor-add-greencode" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; padding: 10px 14px; background: white;">
+                <span class="material-symbols-rounded">qr_code_2</span>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.85rem; color: #333;">GreenCode QR Anchor</div>
+                  <div style="font-size: 0.75rem; color: #666;">Add scan & check-in spot</div>
+                </div>
+              </button>
+              <button id="fs-editor-add-trail" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; padding: 10px 14px; background: white;">
+                <span class="material-symbols-rounded">timeline</span>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.85rem; color: #333;">Draw Trail Route</div>
+                  <div style="font-size: 0.75rem; color: #666;">Click map to trace pathways</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #777; font-weight: 700;">3. Automated Actions</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button id="fs-editor-generate-features" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; padding: 10px 14px; background: #e8f5e9; border: 1px solid #c8e6c9; margin-top: 4px;">
+                <span class="material-symbols-rounded" style="color: #2e7d32;">dynamic_feed</span>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.85rem; color: #2e7d32;">Generate POIs & Trails</div>
+                  <div style="font-size: 0.75rem; color: #777;">Auto-generate elements from OSM bounds</div>
+                </div>
+              </button>
+              <button id="fs-editor-clear-trails" class="btn btn-danger" style="display: flex; align-items: center; gap: 8px; justify-content: flex-start; text-align: left; padding: 10px 14px; background: #ffebee; border: 1px solid #ffcdd2; margin-top: 4px;">
+                <span class="material-symbols-rounded" style="color: #c62828;">delete_sweep</span>
+                <div>
+                  <div style="font-weight: 600; font-size: 0.85rem; color: #c62828;">Clear Custom Trails</div>
+                  <div style="font-size: 0.75rem; color: #777;">Delete all custom trails in current park</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #777; font-weight: 700;">4. Active Map Elements</h4>
+            <div id="fs-editor-elements-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 8px; font-family: var(--font-sans);">
+              <span style="font-size:0.75rem; color:#888; text-align:center; padding:10px;">No items mapped yet.</span>
+            </div>
+          </div>
+          
+          <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid #e0e0e0;">
+            <div id="fs-editor-instructions" style="padding: 12px; background: #e3f2fd; color: #0d47a1; border-radius: 6px; font-size: 0.8rem; line-height: 1.4;">
+              Select a tool from above to begin modifying the park map. Click on the map to add points.
+            </div>
+            <!-- Drawing Finish buttons -->
+            <button id="fs-editor-finish-trail" class="btn btn-primary" style="display: none; width: 100%; margin-top: 12px;">Finish Drawing Trail</button>
+            <button id="fs-editor-finish-geofence" class="btn btn-primary" style="display: none; width: 100%; margin-top: 12px; background: #e65100; border: none;">Finish Geofence Polygon</button>
+          </div>
+        </div>
+      </aside>
+      
+      <!-- Fullscreen Map Canvas -->
+      <div id="fullscreen-leaflet-map" style="flex: 1; height: 100%;"></div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
