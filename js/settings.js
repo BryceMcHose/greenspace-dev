@@ -178,13 +178,20 @@ async function loadStateFromSupabase() {
 async function saveStateToSupabase() {
   if (typeof supabase === 'undefined' || !supabase) return;
   try {
-    // Upsert Parks
-    if (parks && parks.length > 0) {
-      const parksToUpsert = parks.map(p => {
-        const idVal = isNaN(Number(p.id)) ? undefined : Number(p.id);
+    // 1. Sync Parks
+    if (parks) {
+      const { data: dbParks } = await supabase.from('parks').select('id');
+      const dbParkIds = dbParks ? dbParks.map(p => String(p.id)) : [];
+      const localParkIds = parks.map(p => String(p.id));
+      const parksToDelete = dbParkIds.filter(id => !localParkIds.includes(id));
+      if (parksToDelete.length > 0) {
+        await supabase.from('parks').delete().in('id', parksToDelete.map(Number));
+      }
+
+      for (let i = 0; i < parks.length; i++) {
+        const p = parks[i];
         const pgIdVal = p.park_group_id === 'pg-virginia' ? 1 : (p.park_group_id === 'pg-pending-1' ? 2 : (isNaN(Number(p.park_group_id)) ? 1 : Number(p.park_group_id)));
-        return {
-          id: idVal,
+        const parkData = {
           name: p.name,
           city: p.city,
           state: p.state,
@@ -197,58 +204,111 @@ async function saveStateToSupabase() {
           lat: p.lat || null,
           lng: p.lng || null
         };
-      });
-      await supabase.from('parks').upsert(parksToUpsert);
+        if (!isNaN(Number(p.id))) {
+          await supabase.from('parks').update(parkData).eq('id', Number(p.id));
+        } else {
+          const { data, error } = await supabase.from('parks').insert([parkData]).select().single();
+          if (!error && data) {
+            parks[i].id = String(data.id);
+          }
+        }
+      }
+      localStorage.setItem('gs_parks', JSON.stringify(parks));
     }
 
-    // Upsert Issues (Reports)
-    if (reports && reports.length > 0) {
-      const issuesToUpsert = reports.map(i => {
-        const idVal = isNaN(Number(i.id)) ? undefined : Number(i.id);
-        const parkIdVal = isNaN(Number(i.park_id)) ? 1 : Number(i.park_id);
-        return {
-          id: idVal,
-          park_id: parkIdVal,
-          type: i.type,
-          location: i.location,
-          details: i.details,
-          status: i.status === 'Received' ? 'new' : (i.status === 'Investigating' ? 'in_progress' : 'resolved'),
-          priority: i.priority,
-          assigned_to: i.assigned_to && i.assigned_to !== 'null' ? i.assigned_to : null,
-          reporter_email: i.reporter_email
-        };
-      });
-      await supabase.from('issues').upsert(issuesToUpsert);
-    }
+    // 2. Sync Categories
+    if (categories) {
+      const { data: dbCats } = await supabase.from('categories').select('id');
+      const dbCatIds = dbCats ? dbCats.map(c => String(c.id)) : [];
+      const localCatIds = categories.map(c => String(c.id));
+      const catsToDelete = dbCatIds.filter(id => !localCatIds.includes(id));
+      if (catsToDelete.length > 0) {
+        await supabase.from('categories').delete().in('id', catsToDelete.map(Number));
+      }
 
-    // Upsert Categories
-    if (categories && categories.length > 0) {
-      const catsToUpsert = categories.map(c => {
-        const idVal = isNaN(Number(c.id)) ? undefined : Number(c.id);
+      for (let i = 0; i < categories.length; i++) {
+        const c = categories[i];
         const pgIdVal = c.park_group_id === 'pg-virginia' ? 1 : (c.park_group_id === 'pg-pending-1' ? 2 : (isNaN(Number(c.park_group_id)) ? 1 : Number(c.park_group_id)));
-        return {
-          id: idVal,
+        const catData = {
           name: c.name,
           park_group_id: pgIdVal
         };
-      });
-      await supabase.from('categories').upsert(catsToUpsert);
+        if (!isNaN(Number(c.id))) {
+          await supabase.from('categories').update(catData).eq('id', Number(c.id));
+        } else {
+          const { data, error } = await supabase.from('categories').insert([catData]).select().single();
+          if (!error && data) {
+            categories[i].id = String(data.id);
+          }
+        }
+      }
+      localStorage.setItem('gs_categories', JSON.stringify(categories));
     }
 
-    // Upsert Rewards
-    if (rewards && rewards.length > 0) {
-      const rewardsToUpsert = rewards.map(r => {
-        const idVal = isNaN(Number(r.id)) ? undefined : Number(r.id);
+    // 3. Sync Rewards
+    if (rewards) {
+      const { data: dbRewards } = await supabase.from('rewards').select('id');
+      const dbRewardIds = dbRewards ? dbRewards.map(r => String(r.id)) : [];
+      const localRewardIds = rewards.map(r => String(r.id));
+      const rewardsToDelete = dbRewardIds.filter(id => !localRewardIds.includes(id));
+      if (rewardsToDelete.length > 0) {
+        await supabase.from('rewards').delete().in('id', rewardsToDelete.map(Number));
+      }
+
+      for (let i = 0; i < rewards.length; i++) {
+        const r = rewards[i];
         const pgIdVal = r.park_group_id === 'pg-virginia' ? 1 : (r.park_group_id === 'pg-pending-1' ? 2 : (isNaN(Number(r.park_group_id)) ? 1 : Number(r.park_group_id)));
-        return {
-          id: idVal,
+        const rewardData = {
           name: r.name,
           cost: r.cost,
           park_group_id: pgIdVal,
           available: r.available
         };
-      });
-      await supabase.from('rewards').upsert(rewardsToUpsert);
+        if (!isNaN(Number(r.id))) {
+          await supabase.from('rewards').update(rewardData).eq('id', Number(r.id));
+        } else {
+          const { data, error } = await supabase.from('rewards').insert([rewardData]).select().single();
+          if (!error && data) {
+            rewards[i].id = String(data.id);
+          }
+        }
+      }
+      localStorage.setItem('gs_rewards', JSON.stringify(rewards));
+    }
+
+    // 4. Sync Issues (Reports)
+    if (reports) {
+      const { data: dbIssues } = await supabase.from('issues').select('id');
+      const dbIssueIds = dbIssues ? dbIssues.map(i => String(i.id)) : [];
+      const localIssueIds = reports.map(i => String(i.id));
+      const issuesToDelete = dbIssueIds.filter(id => !localIssueIds.includes(id));
+      if (issuesToDelete.length > 0) {
+        await supabase.from('issues').delete().in('id', issuesToDelete.map(Number));
+      }
+
+      for (let i = 0; i < reports.length; i++) {
+        const r = reports[i];
+        const parkIdVal = isNaN(Number(r.park_id)) ? 1 : Number(r.park_id);
+        const issueData = {
+          park_id: parkIdVal,
+          type: r.type,
+          location: r.location,
+          details: r.details,
+          status: r.status === 'Received' ? 'new' : (r.status === 'Investigating' ? 'in_progress' : 'resolved'),
+          priority: r.priority,
+          assigned_to: r.assigned_to && r.assigned_to !== 'null' ? r.assigned_to : null,
+          reporter_email: r.reporter_email
+        };
+        if (!isNaN(Number(r.id))) {
+          await supabase.from('issues').update(issueData).eq('id', Number(r.id));
+        } else {
+          const { data, error } = await supabase.from('issues').insert([issueData]).select().single();
+          if (!error && data) {
+            reports[i].id = String(data.id);
+          }
+        }
+      }
+      localStorage.setItem('gs_reports', JSON.stringify(reports));
     }
   } catch (e) {
     console.error("Failed to save state to Supabase in settings:", e);
