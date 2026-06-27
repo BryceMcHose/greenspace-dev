@@ -1,11 +1,5 @@
-// Initialize Firebase Client
-let firebaseAuth = null;
-try {
-  firebase.initializeApp(firebaseConfig);
-  firebaseAuth = firebase.auth();
-} catch (err) {
-  console.warn("Firebase not initialized: Using configuration placeholders.", err);
-}
+// Initialize Supabase Client
+// (Loaded via config.js)
 
 // Elements
 const authForm = document.getElementById('auth-form');
@@ -98,8 +92,11 @@ resetPasswordForm.addEventListener('submit', async (e) => {
   const email = resetEmailInput.value.trim();
   
   try {
-    if (firebaseAuth) {
-      await firebaseAuth.sendPasswordResetEmail(email);
+    if (supabase) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/index.html',
+      });
+      if (error) throw error;
       alert(`Password reset link emailed to ${email}.`);
     } else {
       // Offline fallback
@@ -139,57 +136,97 @@ authForm.addEventListener('submit', async (e) => {
   messageBanner.style.display = 'none';
 
   try {
-    if (!firebaseAuth) {
-      throw new Error("Firebase auth client is not initialized.");
+    if (!supabase) {
+      throw new Error("Supabase client is not initialized.");
     }
 
     if (isSignUpMode) {
-      const userCredential = await firebaseAuth.createUserWithEmailAndPassword(email, password);
-      const user = userCredential.user;
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName
+          }
+        }
+      });
+      if (error) throw error;
+      const user = data.user;
       
-      // Update profile name
-      if (fullName && user) {
-        await user.updateProfile({ displayName: fullName });
-      }
-
-      showMessage('success', 'Registration successful! Proceeding...');
       if (user) {
+        const first = fullName.split(' ')[0] || '';
+        const last = fullName.split(' ').slice(1).join(' ') || '';
+        
+        // Try inserting into public users table
+        try {
+          await supabase.from('users').insert([{
+            id: user.id,
+            first_name: first,
+            last_name: last,
+            email: user.email,
+            temp: false
+          }]);
+        } catch (dbErr) {
+          console.warn("Failed to create public user record:", dbErr);
+        }
+
+        showMessage('success', 'Registration successful! Proceeding...');
         localStorage.setItem('greenspace_user', JSON.stringify({
-          id: user.uid,
+          id: user.id,
           email: user.email,
           full_name: fullName || 'New Operator',
           role: 'Operator',
           temp: 'no',
-          emailConfirmed: user.emailVerified ? 'yes' : 'no'
+          emailConfirmed: user.email_confirmed_at ? 'yes' : 'no'
         }));
         setTimeout(() => {
           window.location.href = 'dashboard.html';
         }, 1500);
       }
     } else {
-      const userCredential = await firebaseAuth.signInWithEmailAndPassword(email, password);
-      const user = userCredential.user;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (error) throw error;
+      const user = data.user;
 
       if (user) {
+        // Fetch user profile info
+        let role = 'Operator';
+        let name = user.user_metadata?.full_name || email.split('@')[0];
+
+        try {
+          const { data: userProfile } = await supabase.from('users').select('*').eq('id', user.id).single();
+          if (userProfile) {
+            name = `${userProfile.first_name} ${userProfile.last_name}`;
+            if (userProfile.email === 'bpmchose@outlook.com') {
+              role = 'Park Admin';
+            }
+          }
+        } catch (dbErr) {
+          console.warn("Could not query user profile:", dbErr);
+        }
+
         localStorage.setItem('greenspace_user', JSON.stringify({
-          id: user.uid,
+          id: user.id,
           email: user.email,
-          full_name: user.displayName || email.split('@')[0],
-          role: 'Operator',
+          full_name: name,
+          role: role,
           temp: 'no',
-          emailConfirmed: user.emailVerified ? 'yes' : 'no'
+          emailConfirmed: user.email_confirmed_at ? 'yes' : 'no'
         }));
         window.location.href = 'dashboard.html';
       }
     }
   } catch (err) {
-    console.warn("Firebase Auth failed, testing credentials fallback:", err.message);
+    console.warn("Supabase Auth failed, testing credentials fallback:", err.message);
 
     // Fallback Local Demo Mode
     if (email === 'bpmchose@outlook.com' && password === 'Test123!') {
       showMessage('success', 'Logging in to Demo Mode...');
       localStorage.setItem('greenspace_user', JSON.stringify({
-        id: 'demo-uuid-1234',
+        id: 'd6c06df9-bb23-455b-9d4b-bfdf0d12e693',
         email: 'bpmchose@outlook.com',
         full_name: 'Bryce Mchose',
         role: 'Park Admin',
@@ -210,30 +247,19 @@ authForm.addEventListener('submit', async (e) => {
 // Handle Google Sign-In
 if (googleSigninBtn) {
   googleSigninBtn.addEventListener('click', async () => {
-    if (!firebaseAuth) {
-      alert("Firebase auth client is not initialized.");
+    if (!supabase) {
+      alert("Supabase client is not initialized.");
       return;
     }
     
     try {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      const result = await firebaseAuth.signInWithPopup(provider);
-      const user = result.user;
-      
-      if (user) {
-        localStorage.setItem('greenspace_user', JSON.stringify({
-          id: user.uid,
-          email: user.email,
-          full_name: user.displayName || user.email.split('@')[0],
-          role: 'Operator',
-          temp: 'no',
-          emailConfirmed: user.emailVerified ? 'yes' : 'no'
-        }));
-        showMessage('success', 'Google sign-in successful! Redirecting...');
-        setTimeout(() => {
-          window.location.href = 'dashboard.html';
-        }, 1000);
-      }
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/dashboard.html'
+        }
+      });
+      if (error) throw error;
     } catch (err) {
       showMessage('error', `Google Authentication Error: ${err.message}`);
     }

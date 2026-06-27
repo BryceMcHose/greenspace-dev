@@ -1,11 +1,5 @@
-// Initialize Firebase Client
-let firebaseAuth = null;
-try {
-  firebase.initializeApp(firebaseConfig);
-  firebaseAuth = firebase.auth();
-} catch (err) {
-  console.warn("Firebase not initialized: Using configuration placeholders.", err);
-}
+// Initialize Supabase Client
+// (Loaded via config.js)
 
 function seedDataIfEmpty() {
   if (localStorage.getItem('gs_seeded') === 'true') return;
@@ -162,7 +156,11 @@ function parseQRParameters() {
 
 // Page Load - Checks cached Operator user session
 let loggedInUser = null;
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+  if (typeof supabase !== 'undefined' && supabase) {
+    await loadStateFromSupabase();
+  }
+  
   const cachedUser = localStorage.getItem('greenspace_user');
   if (cachedUser) {
     loggedInUser = JSON.parse(cachedUser);
@@ -176,6 +174,59 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   setupSelectors();
+
+async function loadStateFromSupabase() {
+  if (typeof supabase === 'undefined' || !supabase) return;
+  try {
+    const { data: dbParks } = await supabase.from('parks').select('*');
+    if (dbParks) {
+      parks = dbParks.map(p => ({
+        id: String(p.id),
+        name: p.name,
+        city: p.city,
+        state: p.state,
+        zip_code: p.zip_code,
+        identifier: p.identifier,
+        park_group_id: String(p.park_group_id),
+        status: p.status,
+        geofence_status: p.geofence_status,
+        geofence_polygon: p.geofence_polygon,
+        lat: p.lat,
+        lng: p.lng
+      }));
+    }
+
+    const { data: dbCategories } = await supabase.from('categories').select('*');
+    if (dbCategories) {
+      categories = dbCategories.map(c => ({
+        id: String(c.id),
+        name: c.name,
+        park_group_id: String(c.park_group_id),
+        park_id: null
+      }));
+    }
+
+    const { data: dbIssues } = await supabase.from('issues').select('*');
+    if (dbIssues) {
+      reports = dbIssues.map(i => ({
+        id: String(i.id),
+        park_id: i.park_id,
+        type: i.type,
+        location: i.location,
+        details: i.details,
+        status: i.status === 'new' ? 'Received' : (i.status === 'in_progress' ? 'Investigating' : 'Complete'),
+        priority: i.priority,
+        assigned_to: i.assigned_to,
+        reporter_email: i.reporter_email,
+        created_at: i.created_at,
+        lat: i.lat || 37.3387,
+        lng: i.lng || -76.7865
+      }));
+    }
+  } catch (e) {
+    console.error("Failed to load state from Supabase in reports:", e);
+  }
+}
   setupSubmitDisplay();
 
   // GPS Location Selector
@@ -416,12 +467,28 @@ formReportDetails.addEventListener('submit', async (e) => {
     lng: window.pinnedLng || null
   };
 
-  try {
-    if (firebaseAuth && firebaseAuth.currentUser) {
-      console.log("Saving report under Firebase user:", firebaseAuth.currentUser.uid);
+  if (typeof supabase !== 'undefined' && supabase) {
+    try {
+      const userRes = await supabase.auth.getUser();
+      const currentUserObj = userRes.data?.user;
+      const parkIdVal = isNaN(Number(newReport.park_id)) ? 1 : Number(newReport.park_id);
+      
+      const { data: dbIssue, error } = await supabase.from('issues').insert([{
+        park_id: parkIdVal,
+        type: newReport.type,
+        location: newReport.location,
+        details: newReport.details,
+        status: 'new',
+        priority: newReport.priority || 'Medium',
+        reporter_email: isAnonymous ? null : (currentUserObj ? currentUserObj.email : newReport.reporter_email)
+      }]).select().single();
+      
+      if (!error && dbIssue) {
+        newReport.id = String(dbIssue.id);
+      }
+    } catch (dbErr) {
+      console.error("Failed to insert issue in Supabase:", dbErr);
     }
-  } catch (err) {
-    console.warn("Saving report in local browser state cache:", err.message);
   }
 
   // Update local application state memory

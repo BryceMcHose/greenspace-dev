@@ -51,6 +51,208 @@ function saveState() {
   localStorage.setItem('gs_park_groups', JSON.stringify(parkGroups));
   localStorage.setItem('gs_user_points', JSON.stringify(userPoints));
   localStorage.setItem('gs_greencodes', JSON.stringify(greenCodes));
+
+  if (typeof supabase !== 'undefined' && supabase) {
+    saveStateToSupabase();
+  }
+}
+
+async function loadStateFromSupabase() {
+  if (typeof supabase === 'undefined' || !supabase) return;
+  try {
+    const { data: dbUsers } = await supabase.from('users').select('*');
+    const { data: dbGroupStaff } = await supabase.from('park_group_staff').select('*');
+    if (dbUsers) {
+      staff = dbUsers.map(u => {
+        const gsStaff = dbGroupStaff?.find(s => s.user_id === u.id);
+        return {
+          id: u.id,
+          email: u.email,
+          full_name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'New Operator',
+          role: u.email === 'bpmchose@outlook.com' ? 'Park Admin' : 'Employee',
+          park_group_id: gsStaff ? String(gsStaff.park_group_id) : 'pg-virginia'
+        };
+      });
+    }
+
+    const { data: dbGroups } = await supabase.from('park_groups').select('*');
+    if (dbGroups) {
+      parkGroups = dbGroups.map(g => ({
+        id: String(g.id),
+        name: g.name,
+        owner_id: g.owner_id,
+        max_locations: g.max_locations,
+        max_users: g.max_users,
+        points_enabled: g.points_enabled,
+        reports_month: g.reports_month,
+        rewards_inst: g.rewards_inst,
+        subscription_plan: g.subscription_plan,
+        total_pts: g.total_pts,
+        status: g.id === 2 ? 'Pending Approval' : 'Active'
+      }));
+    }
+
+    const { data: dbParks } = await supabase.from('parks').select('*');
+    if (dbParks) {
+      parks = dbParks.map(p => ({
+        id: String(p.id),
+        name: p.name,
+        city: p.city,
+        state: p.state,
+        zip_code: p.zip_code,
+        identifier: p.identifier,
+        park_group_id: String(p.park_group_id),
+        status: p.status,
+        geofence_status: p.geofence_status,
+        geofence_polygon: p.geofence_polygon,
+        lat: p.lat,
+        lng: p.lng
+      }));
+    }
+
+    const { data: dbCategories } = await supabase.from('categories').select('*');
+    if (dbCategories) {
+      categories = dbCategories.map(c => ({
+        id: String(c.id),
+        name: c.name,
+        park_group_id: String(c.park_group_id),
+        park_id: null
+      }));
+    }
+
+    const { data: dbIssues } = await supabase.from('issues').select('*');
+    if (dbIssues) {
+      reports = dbIssues.map(i => ({
+        id: String(i.id),
+        park_id: i.park_id,
+        type: i.type,
+        location: i.location,
+        details: i.details,
+        status: i.status === 'new' ? 'Received' : (i.status === 'in_progress' ? 'Investigating' : 'Complete'),
+        priority: i.priority,
+        assigned_to: i.assigned_to,
+        reporter_email: i.reporter_email,
+        created_at: i.created_at,
+        lat: i.lat || 37.3387,
+        lng: i.lng || -76.7865
+      }));
+    }
+
+    const { data: dbRewards } = await supabase.from('rewards').select('*');
+    if (dbRewards) {
+      rewards = dbRewards.map(r => ({
+        id: String(r.id),
+        name: r.name,
+        cost: r.cost,
+        park_group_id: String(r.park_group_id),
+        available: r.available
+      }));
+    }
+
+    const { data: dbRedemptions } = await supabase.from('redemptions').select('*');
+    if (dbRedemptions) {
+      orders = dbRedemptions.map(o => ({
+        id: String(o.id),
+        reward_id: String(o.reward_id),
+        park_group_id: String(o.park_group_id),
+        status: o.status,
+        creator_id: o.creator_id,
+        created_at: o.created_at
+      }));
+    }
+
+    const { data: dbPoints } = await supabase.from('user_points').select('*');
+    if (dbPoints) {
+      userPoints = dbPoints.map(up => ({
+        id: String(up.id),
+        user_id: up.user_id,
+        park_group_id: String(up.park_group_id),
+        points: up.points
+      }));
+    }
+  } catch (e) {
+    console.error("Failed to load state from Supabase in settings:", e);
+  }
+}
+
+async function saveStateToSupabase() {
+  if (typeof supabase === 'undefined' || !supabase) return;
+  try {
+    // Upsert Parks
+    if (parks && parks.length > 0) {
+      const parksToUpsert = parks.map(p => {
+        const idVal = isNaN(Number(p.id)) ? undefined : Number(p.id);
+        const pgIdVal = p.park_group_id === 'pg-virginia' ? 1 : (p.park_group_id === 'pg-pending-1' ? 2 : (isNaN(Number(p.park_group_id)) ? 1 : Number(p.park_group_id)));
+        return {
+          id: idVal,
+          name: p.name,
+          city: p.city,
+          state: p.state,
+          zip_code: p.zip_code,
+          identifier: p.identifier,
+          park_group_id: pgIdVal,
+          status: p.status || 'Active',
+          geofence_status: p.geofence_status || 'Approved',
+          geofence_polygon: p.geofence_polygon || null,
+          lat: p.lat || null,
+          lng: p.lng || null
+        };
+      });
+      await supabase.from('parks').upsert(parksToUpsert);
+    }
+
+    // Upsert Issues (Reports)
+    if (reports && reports.length > 0) {
+      const issuesToUpsert = reports.map(i => {
+        const idVal = isNaN(Number(i.id)) ? undefined : Number(i.id);
+        const parkIdVal = isNaN(Number(i.park_id)) ? 1 : Number(i.park_id);
+        return {
+          id: idVal,
+          park_id: parkIdVal,
+          type: i.type,
+          location: i.location,
+          details: i.details,
+          status: i.status === 'Received' ? 'new' : (i.status === 'Investigating' ? 'in_progress' : 'resolved'),
+          priority: i.priority,
+          assigned_to: i.assigned_to && i.assigned_to !== 'null' ? i.assigned_to : null,
+          reporter_email: i.reporter_email
+        };
+      });
+      await supabase.from('issues').upsert(issuesToUpsert);
+    }
+
+    // Upsert Categories
+    if (categories && categories.length > 0) {
+      const catsToUpsert = categories.map(c => {
+        const idVal = isNaN(Number(c.id)) ? undefined : Number(c.id);
+        const pgIdVal = c.park_group_id === 'pg-virginia' ? 1 : (c.park_group_id === 'pg-pending-1' ? 2 : (isNaN(Number(c.park_group_id)) ? 1 : Number(c.park_group_id)));
+        return {
+          id: idVal,
+          name: c.name,
+          park_group_id: pgIdVal
+        };
+      });
+      await supabase.from('categories').upsert(catsToUpsert);
+    }
+
+    // Upsert Rewards
+    if (rewards && rewards.length > 0) {
+      const rewardsToUpsert = rewards.map(r => {
+        const idVal = isNaN(Number(r.id)) ? undefined : Number(r.id);
+        const pgIdVal = r.park_group_id === 'pg-virginia' ? 1 : (r.park_group_id === 'pg-pending-1' ? 2 : (isNaN(Number(r.park_group_id)) ? 1 : Number(r.park_group_id)));
+        return {
+          id: idVal,
+          name: r.name,
+          cost: r.cost,
+          park_group_id: pgIdVal,
+          available: r.available
+        };
+      });
+      await supabase.from('rewards').upsert(rewardsToUpsert);
+    }
+  } catch (e) {
+    console.error("Failed to save state to Supabase in settings:", e);
+  }
 }
 
 let activeParkGroupId = parkGroups[0]?.id || '';
@@ -110,7 +312,10 @@ function renderNavigation() {
 }
 
 // Initial setup
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+  if (typeof supabase !== 'undefined' && supabase) {
+    await loadStateFromSupabase();
+  }
   populateGroupSelector();
   renderNavigation();
   setupSearch();

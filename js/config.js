@@ -9,3 +9,8 @@ const firebaseConfig = {
   appId: "1:568587211356:web:457db40e7212ec21460c99",
   measurementId: "G-92P2Y7QPHN"
 };
+
+// GreenSpace Supabase Configuration
+const supabaseUrl = "https://kguznoohgpvswhosnokn.supabase.co";
+const supabaseKey = "sb_publishable_BJqGs3b5n3CuGDVqpzR60g_D2_ewBIH";
+const supabase = typeof supabase !== 'undefined' ? supabase.createClient(supabaseUrl, supabaseKey) : (window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null);
