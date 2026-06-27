@@ -170,6 +170,18 @@ async function loadStateFromSupabase() {
         points: up.points
       }));
     }
+
+    const { data: dbGreenCodes } = await supabase.from('green_codes').select('*');
+    if (dbGreenCodes) {
+      greenCodes = dbGreenCodes.map(gc => ({
+        id: String(gc.id),
+        code: gc.code,
+        name: gc.name,
+        park_id: gc.park_id,
+        lat: gc.lat,
+        lng: gc.lng
+      }));
+    }
   } catch (e) {
     console.error("Failed to load state from Supabase in settings:", e);
   }
@@ -309,6 +321,184 @@ async function saveStateToSupabase() {
         }
       }
       localStorage.setItem('gs_reports', JSON.stringify(reports));
+    }
+
+    // 5. Sync green_codes
+    if (greenCodes) {
+      const { data: dbGCs } = await supabase.from('green_codes').select('id');
+      const dbGCIds = dbGCs ? dbGCs.map(gc => String(gc.id)) : [];
+      const localGCIds = greenCodes.map(gc => String(gc.id));
+      const gcsToDelete = dbGCIds.filter(id => !localGCIds.includes(id));
+      if (gcsToDelete.length > 0) {
+        await supabase.from('green_codes').delete().in('id', gcsToDelete.map(Number));
+      }
+
+      for (let i = 0; i < greenCodes.length; i++) {
+        const gc = greenCodes[i];
+        const parkIdVal = isNaN(Number(gc.park_id)) ? 1 : Number(gc.park_id);
+        const gcData = {
+          code: gc.code,
+          name: gc.name,
+          park_id: parkIdVal,
+          lat: gc.lat || null,
+          lng: gc.lng || null
+        };
+        if (!isNaN(Number(gc.id))) {
+          await supabase.from('green_codes').update(gcData).eq('id', Number(gc.id));
+        } else {
+          const { data, error } = await supabase.from('green_codes').insert([gcData]).select().single();
+          if (!error && data) {
+            greenCodes[i].id = String(data.id);
+          }
+        }
+      }
+      localStorage.setItem('gs_greencodes', JSON.stringify(greenCodes));
+    }
+
+    // 6. Sync staff
+    if (staff) {
+      const localStaffUserIds = staff.map(s => s.id);
+      const { data: dbPGS } = await supabase.from('park_group_staff').select('user_id');
+      const dbPGSUserIds = dbPGS ? dbPGS.map(s => s.user_id) : [];
+      const pgsToDelete = dbPGSUserIds.filter(id => !localStaffUserIds.includes(id));
+      if (pgsToDelete.length > 0) {
+        await supabase.from('park_group_staff').delete().in('user_id', pgsToDelete);
+      }
+
+      for (let i = 0; i < staff.length; i++) {
+        const s = staff[i];
+        const parts = s.full_name.split(' ');
+        const first = parts[0] || '';
+        const last = parts.slice(1).join(' ') || '';
+        const pgIdVal = s.park_group_id === 'pg-virginia' ? 1 : (s.park_group_id === 'pg-pending-1' ? 2 : (isNaN(Number(s.park_group_id)) ? 1 : Number(s.park_group_id)));
+
+        let userId = s.id;
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+        if (!isUUID) {
+          userId = 'ffffffff-ffff-4fff-8fff-' + Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
+          staff[i].id = userId;
+        }
+
+        const userData = {
+          id: userId,
+          first_name: first,
+          last_name: last,
+          email: s.email,
+          temp: false
+        };
+
+        await supabase.from('users').upsert(userData, { onConflict: 'email' });
+        await supabase.from('park_group_staff').upsert({
+          park_group_id: pgIdVal,
+          user_id: userId
+        }, { onConflict: 'park_group_id,user_id' });
+      }
+      localStorage.setItem('gs_staff', JSON.stringify(staff));
+    }
+
+    // 7. Sync orders (redemptions)
+    if (orders) {
+      const { data: dbReds } = await supabase.from('redemptions').select('id');
+      const dbRedIds = dbReds ? dbReds.map(r => String(r.id)) : [];
+      const localRedIds = orders.map(o => String(o.id));
+      const redsToDelete = dbRedIds.filter(id => !localRedIds.includes(id));
+      if (redsToDelete.length > 0) {
+        await supabase.from('redemptions').delete().in('id', redsToDelete.map(Number));
+      }
+
+      for (let i = 0; i < orders.length; i++) {
+        const o = orders[i];
+        const rewIdVal = isNaN(Number(o.reward_id)) ? 1 : Number(o.reward_id);
+        const pgIdVal = o.park_group_id === 'pg-virginia' ? 1 : (o.park_group_id === 'pg-pending-1' ? 2 : (isNaN(Number(o.park_group_id)) ? 1 : Number(o.park_group_id)));
+        
+        let creatorIdVal = o.creator_id;
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(creatorIdVal);
+        if (!isUUID) {
+          creatorIdVal = 'd6c06df9-bb23-455b-9d4b-bfdf0d12e693';
+        }
+
+        const redemptionData = {
+          reward_id: rewIdVal,
+          park_group_id: pgIdVal,
+          status: o.status || 'Pending',
+          creator_id: creatorIdVal
+        };
+
+        if (!isNaN(Number(o.id))) {
+          await supabase.from('redemptions').update(redemptionData).eq('id', Number(o.id));
+        } else {
+          const { data, error } = await supabase.from('redemptions').insert([redemptionData]).select().single();
+          if (!error && data) {
+            orders[i].id = String(data.id);
+          }
+        }
+      }
+      localStorage.setItem('gs_orders', JSON.stringify(orders));
+    }
+
+    // 8. Sync userPoints
+    if (userPoints) {
+      for (let i = 0; i < userPoints.length; i++) {
+        const up = userPoints[i];
+        const pgIdVal = up.park_group_id === 'pg-virginia' ? 1 : (up.park_group_id === 'pg-pending-1' ? 2 : (isNaN(Number(up.park_group_id)) ? 1 : Number(up.park_group_id)));
+        
+        let userIdVal = up.user_id;
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userIdVal);
+        if (!isUUID) {
+          userIdVal = 'd6c06df9-bb23-455b-9d4b-bfdf0d12e693';
+        }
+
+        const pointData = {
+          user_id: userIdVal,
+          park_group_id: pgIdVal,
+          points: up.points || 0
+        };
+
+        await supabase.from('user_points').upsert(pointData, { onConflict: 'user_id,park_group_id' });
+      }
+      localStorage.setItem('gs_user_points', JSON.stringify(userPoints));
+    }
+
+    // 9. Sync parkGroups
+    if (parkGroups) {
+      const { data: dbGroups } = await supabase.from('park_groups').select('id');
+      const dbGroupIds = dbGroups ? dbGroups.map(g => String(g.id)) : [];
+      const localGroupIds = parkGroups.map(g => String(g.id));
+      const groupsToDelete = dbGroupIds.filter(id => !localGroupIds.includes(id));
+      if (groupsToDelete.length > 0) {
+        await supabase.from('park_groups').delete().in('id', groupsToDelete.map(Number));
+      }
+
+      for (let i = 0; i < parkGroups.length; i++) {
+        const g = parkGroups[i];
+        let ownerIdVal = g.owner_id;
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ownerIdVal);
+        if (!isUUID) {
+          ownerIdVal = 'd6c06df9-bb23-455b-9d4b-bfdf0d12e693';
+        }
+
+        const groupData = {
+          name: g.name,
+          owner_id: ownerIdVal,
+          max_locations: g.max_locations || 5,
+          max_users: g.max_users || 5,
+          points_enabled: g.points_enabled || true,
+          reports_month: g.reports_month || 0,
+          rewards_inst: g.rewards_inst || '',
+          subscription_plan: g.subscription_plan || 'GreenSpace Starter Plan',
+          total_pts: g.total_pts || 0
+        };
+
+        if (!isNaN(Number(g.id))) {
+          await supabase.from('park_groups').update(groupData).eq('id', Number(g.id));
+        } else {
+          const { data, error } = await supabase.from('park_groups').insert([groupData]).select().single();
+          if (!error && data) {
+            parkGroups[i].id = String(data.id);
+          }
+        }
+      }
+      localStorage.setItem('gs_park_groups', JSON.stringify(parkGroups));
     }
   } catch (e) {
     console.error("Failed to save state to Supabase in settings:", e);
